@@ -1,0 +1,181 @@
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+a {
+    color: #ffff00
+}
+</style>
+</head>
+
+<body>
+
+<div id="info">demo page
+    <br/> <a href="javascript:Toggle();">toggle </a>
+
+</div>
+
+<audio id="collisionsound" style="display:none">
+<source src="sounds/door.mp3" type='audio/mp3'>
+</audio>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+
+
+<script>
+
+var camera, scene, renderer, light, controls;
+var angle = 0;
+var turn = false;
+var frame;
+var sound;
+
+init();
+animate();
+
+function Toggle() {
+    turn = !turn;
+}
+
+function init() {
+
+    sound = document.getElementById ('collisionsound');
+	scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 500;
+    scene.add(camera);
+
+	frame = new THREE.Object3D();
+    scene.add(frame);
+
+	var door  = createMesh(new THREE.BoxGeometry(48, 111, 7), "stone3.jpg","Bump.jpg");
+	door.position.set(-24,55.5,-3.5);
+    frame.add(door);
+	
+	var cyl_geom = createMesh(new THREE.CylinderGeometry (1,1,20,32), "stone2.jpg");
+	cyl_geom.position.set(0,20,0);
+    frame.add(cyl_geom);
+	
+	var cyl_geom2 = createMesh(new THREE.CylinderGeometry (1,1,20,32), "stone2.jpg");
+	cyl_geom2.position.set(0,90,0);
+    frame.add(cyl_geom2);
+	
+	var cyl_geom3 = createMesh(new THREE.CylinderGeometry (1,1,16,32), "stone2.jpg");
+	cyl_geom3.position.set(-40,60,-3.5);
+	cyl_geom3.rotation.x = Math.PI/2.0;
+    frame.add(cyl_geom3);
+	
+	var cyl_geom4 = createMesh(new THREE.CylinderGeometry (2,3,5,32), "stone2.jpg");
+	cyl_geom4.position.set(-40,60,-13.5);
+	cyl_geom4.rotation.x = Math.PI/2.0;
+    frame.add(cyl_geom4);
+	
+	var cyl_geom5 = createMesh(new THREE.CylinderGeometry (2,3,5,32), "stone2.jpg");
+	cyl_geom5.position.set(-40,60,5.5);
+	cyl_geom5.rotation.x = -Math.PI/2.0;
+    frame.add(cyl_geom5);
+	
+	//frame.position.set(54,6,0);
+	
+    var geometry = createMesh(new THREE.BoxGeometry(60, 6, 10), "stone.jpg");
+	geometry.position.set(30,3,-5);
+    scene.add(geometry);
+	
+	var geometry2 = geometry.clone();
+	geometry2.position.set(30,120,-5);
+    scene.add(geometry2);
+	
+	var geometry3 = createMesh(new THREE.BoxGeometry(6, 111, 10), "stone.jpg");
+	geometry3.position.set(3,61.5,-5);
+    scene.add(geometry3);
+	
+	var geometry4 = geometry3.clone();
+	geometry3.position.set(57,61.5,-5);
+    scene.add(geometry4);
+
+	var geometry5 = createMesh(new THREE.BoxGeometry(3, 111, 3), "stone.jpg");
+	geometry5.position.set(7.5,61.5,-8.5);
+    scene.add(geometry5);
+	
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(0, 100, 200);
+    scene.add(light);
+	
+	var light2 = new THREE.PointLight(0xffffff);
+    light2.position.set(0, 100, -200);
+    scene.add(light2);
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    scene.add(gridXZ);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+
+}
+
+function animate() {
+    controls.update();
+    if (turn) {
+		if(angle <= Math.PI/3.0*2.0)
+			angle += 0.01;
+	}else if(!turn){
+		if(angle >= 0)
+			angle -= 0.01;
+	}
+	if(angle >= 0.75 && angle <= 0.77 && !turn)
+		sound.play();
+	
+	if(angle < 0)
+		angle = 0;
+	if(angle > Math.PI/3.0*2.0)
+		angle = Math.PI/3.0*2.0;
+	
+	frame.rotation.y = angle;
+	frame.position.set(54,6,0);
+    //mesh.position.set(50 * Math.cos(angle), 0, -50 * Math.sin(angle));
+    requestAnimationFrame(animate);
+    render();
+}
+
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial();
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	mat.map = texture;
+
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 1;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+</script>
+
+
+</body>
+</html>
