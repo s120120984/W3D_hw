@@ -1,0 +1,420 @@
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+a {
+    color: #ffff00
+}
+#container {
+    width:75%;
+    float:left;
+    background-color:pink;
+   margin-top: 5px;
+}
+#cnvsFrame {
+    height: 0;
+    padding-bottom:75%;
+}
+.flc {
+    float:right;
+    margin:5px;
+    width:15%;
+}
+</style>
+</head>
+
+<body>
+
+<div>
+    <button id="save" onclick="javascript:save()">
+        Save
+    </button>
+    
+    <button id="load" onclick="javascript:load()">
+        Load
+    </button>
+</div>
+<div id="container">
+<div id="cnvsFrame">
+    <canvas id="cnvs"> </canvas>
+</div>
+</div>
+
+
+<img src="images/picture1.jpg" class="flc" onclick="javascript:tst(1);" />
+<img src="images/picture2.jpg" class="flc" onclick="javascript:tst(2);" />
+<img src="images/picture3.jpg" class="flc" onclick="javascript:tst(3);" />
+<img src="images/picture4.jpg" class="flc" onclick="javascript:tst(4);" />
+<div style="clear:both"></div>
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+
+
+<script>
+
+var camera, scene, renderer, light, controls;
+var plane,plane2,plane3, picture;
+var p1,p2,p3;
+var com = 0;
+var pic1 = 'images/picture1.jpg';
+var pic2 = 'images/picture2.jpg';
+var pic3 = 'images/picture3.jpg';
+
+var raycaster;
+var mouse = new THREE.Vector2();
+var pickables = [];
+
+var ww,hh;
+
+init();
+animate();
+
+function init() {
+	
+	var theCanvas = document.getElementById("cnvs");
+    var theCanvasFrame = document.getElementById("cnvsFrame");
+    renderer = new THREE.WebGLRenderer({
+        canvas: theCanvas,
+        antialias: true
+    });
+	
+    ww = theCanvasFrame.clientWidth;
+    hh = theCanvasFrame.clientHeight;
+    renderer.setSize(ww, hh);
+    renderer.setClearColor(0x222222);
+	
+	
+	scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, ww / hh, 1, 1000);
+    camera.position.z = 250;
+    scene.add(camera);
+	
+	var planeTexture = new THREE.ImageUtils.loadTexture( 'images/stone2.jpg' );
+    var geometry = new THREE.PlaneGeometry(160, 160);
+    plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({map: planeTexture,side: THREE.DoubleSide}));
+    plane.rotation.y = Math.PI / 2;
+	plane.position.set(-80,0,40);
+	plane.name = "plane";
+    scene.add(plane);
+	
+	plane2 = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({map: planeTexture,side: THREE.DoubleSide}));
+	plane2.position.set(0,0,-40);
+	plane2.name = "plane2";
+    scene.add(plane2);
+	
+	plane3 = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({map: planeTexture,side: THREE.DoubleSide}));
+    plane3.rotation.y = -Math.PI / 2;
+	plane3.position.set(80,0,40);
+	plane3.name = "plane3";
+    scene.add(plane3);
+	
+	floor = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({map: new THREE.ImageUtils.loadTexture( 'images/stone.jpg' ),side: THREE.DoubleSide}));
+    floor.rotation.x = -Math.PI / 2;
+	floor.position.set(0,-80,40);
+    scene.add(floor);
+	/*
+    picture = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        polygonOffset: true,
+        polygonOffsetUnits: -4.0,
+        polygonOffsetFactor: -1.0,
+    }));
+    scene.add(picture);
+	*/
+	p1 = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 40),
+    new THREE.MeshBasicMaterial({
+        map: new THREE.ImageUtils.loadTexture( 'images/picture1.jpg' ),
+        polygonOffset: true,
+        polygonOffsetUnits: -4.0,
+        polygonOffsetFactor: -1.0,
+    }));
+	p1.rotation.y = Math.PI / 2;
+	p1.position.set(-80,0,40);
+    scene.add(p1);
+	
+	p2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 40),
+    new THREE.MeshBasicMaterial({
+        map: new THREE.ImageUtils.loadTexture( 'images/picture2.jpg' ),
+        polygonOffset: true,
+        polygonOffsetUnits: -4.0,
+        polygonOffsetFactor: -1.0,
+    }));
+	p2.position.set(0,0,-40);
+    scene.add(p2);
+	
+	p3 = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 40),
+    new THREE.MeshBasicMaterial({
+        map: new THREE.ImageUtils.loadTexture( 'images/picture3.jpg' ),
+        polygonOffset: true,
+        polygonOffsetUnits: -4.0,
+        polygonOffsetFactor: -1.0,
+    }));
+	p3.rotation.y = -Math.PI / 2;
+	p3.position.set(80,0,40);
+    scene.add(p3);
+
+    pickables = [plane,plane2,plane3];
+
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 300, 200);
+    scene.add(light);
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    //scene.add(gridXZ);
+	
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    raycaster = new THREE.Raycaster();
+    document.addEventListener('mousedown', onDocumentMouseDown, false);
+    document.addEventListener('mousemove', onDocumentMouseMove, false);
+}
+
+function onDocumentMouseDown(event) {
+
+    event.preventDefault();
+    //mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    //mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	mouse.x = (event.clientX / ww) * 2 - 1;
+    mouse.y = -(event.clientY / hh) * 2 + 1;
+
+    // find intersections
+    var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+    var intersects = raycaster.intersectObjects(pickables);
+    if (intersects.length > 0) {
+        //debugger;
+		if(intersects[0].object.name == "plane"){
+			p1.position.copy(intersects[0].point);
+			p1.rotation.copy (intersects[0].object.rotation);
+			com = 1;
+		}
+		if(intersects[0].object.name == "plane2"){
+			p2.position.copy(intersects[0].point);
+			p2.rotation.copy (intersects[0].object.rotation);
+			com = 2;
+		}
+		if(intersects[0].object.name == "plane3"){
+			p3.position.copy(intersects[0].point);
+			p3.rotation.copy (intersects[0].object.rotation);
+			com = 3;
+		}
+		/*
+        picture.position.copy(intersects[0].point);
+        picture.rotation.copy (intersects[0].object.rotation);
+		console.log(intersects[0].object);*/
+    }
+
+}
+
+function onDocumentMouseMove(event) {
+    event.preventDefault();
+    //mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    //mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	mouse.x = (event.clientX / ww) * 2 - 1;
+    mouse.y = -(event.clientY / hh) * 2 + 1;
+    //
+    var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+    var intersects = raycaster.intersectObjects(pickables);
+
+    if (intersects.length > 0) {
+        document.body.style.cursor = 'pointer';
+    } else {
+        document.body.style.cursor = 'auto';
+    }
+}
+
+function save() {
+	localStorage.setItem("p1posx", p1.position.x);
+	localStorage.setItem("p1posy", p1.position.y);
+	localStorage.setItem("p1posz", p1.position.z);
+	localStorage.setItem("p2posx", p2.position.x);
+	localStorage.setItem("p2posy", p2.position.y);
+	localStorage.setItem("p2posz", p2.position.z);
+	localStorage.setItem("p3posx", p3.position.x);
+	localStorage.setItem("p3posy", p3.position.y);
+	localStorage.setItem("p3posz", p3.position.z);
+	localStorage.setItem("p1p", pic1);
+	localStorage.setItem("p2p", pic2);
+	localStorage.setItem("p3p", pic3);
+}
+
+function load() {
+	p1.position.set(localStorage.getItem("p1posx"),localStorage.getItem("p1posy"),localStorage.getItem("p1posz"));
+	p2.position.set(localStorage.getItem("p2posx"),localStorage.getItem("p2posy"),localStorage.getItem("p2posz"));
+	p3.position.set(localStorage.getItem("p3posx"),localStorage.getItem("p3posy"),localStorage.getItem("p3posz"));
+	p1.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( localStorage.getItem("p1p") ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+	p2.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( localStorage.getItem("p2p") ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+	p3.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( localStorage.getItem("p3p") ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+	
+}
+
+function tst(which) {
+
+    if (which === 1) {
+		if(com == 1){
+			p1.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture1.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic1 = 'images/picture1.jpg';
+		}
+		if(com == 2){
+			p2.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture1.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic2 = 'images/picture1.jpg';
+		}
+		if(com == 3){
+			p3.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture1.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic3 = 'images/picture1.jpg';			
+		}
+        
+    } else if (which === 2) {
+        if(com == 1){
+			p1.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture2.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic1 = 'images/picture2.jpg';			
+		}
+		if(com == 2){
+			p2.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture2.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic2 = 'images/picture2.jpg';			
+		}
+		if(com == 3){
+			p3.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture2.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic3 = 'images/picture2.jpg';			
+		}
+    } else if (which === 3) {
+        if(com == 1){
+			p1.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture3.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic1 = 'images/picture3.jpg';			
+		}
+		if(com == 2){
+			p2.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture3.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic2 = 'images/picture3.jpg';			
+		}
+		if(com == 3){
+			p3.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture3.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic3 = 'images/picture3.jpg';			
+		}
+    } else if (which === 4) {
+        if(com == 1){
+			p1.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture4.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic1 = 'images/picture4.jpg';			
+		}
+		if(com == 2){
+			p2.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture4.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic2 = 'images/picture4.jpg';			
+		}
+		if(com == 3){
+			p3.material = new THREE.MeshBasicMaterial({
+						map: new THREE.ImageUtils.loadTexture( 'images/picture4.jpg' ),
+						polygonOffset: true,
+						polygonOffsetUnits: -4.0,
+						polygonOffsetFactor: -1.0,
+						});
+			pic3 = 'images/picture4.jpg';			
+		}
+    }
+    // debugger;
+}
+
+function animate() {
+    controls.update();
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+
+// important to add this 
+// in jsfiddle!
+window.focus();
+
+</script>
+
+
+</body>
+</html>
