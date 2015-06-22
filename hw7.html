@@ -1,0 +1,247 @@
+<html>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+}
+body {
+    overflow: hidden;
+}
+</style>
+
+ <body>
+ 
+<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"></script>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    uniform float time;
+    varying vec2 vUv;
+    
+    float rand(vec2 co) {
+        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main(void) {
+        // Divide the coordinates into a grid of squares
+    vec2 v = vUv*10.0; //gl_FragCoord.xy / 20.0;
+        // Calculate a pseudo-random brightness value for each square
+        vec3 brightness = vec3(fract(rand(floor(v)) + time), fract(rand(floor(v)) + time / 3.), fract(rand(floor(v)) + time / 5.));
+        // Reduce brightness in pixels away from the square center
+        brightness *= 0.5 - length(fract(v) - vec2(0.5, 0.5));
+        gl_FragColor = vec4(brightness.r * 4.0, brightness.g * brightness.b * 2., brightness.b - brightness.r + 0.2, 1.0);
+    }
+</script>
+
+<script>
+var camera, scene, renderer, geometry, material, mesh, controls;
+var clock = new THREE.Clock();
+var pucks = [];
+var which = 1;
+var meshMaterial;
+var asd = 90.0;
+var asd2 = 0.0;
+var panmesh;
+
+var Puck = function () {
+    this.vel = new THREE.Vector3();
+    this.pos = new THREE.Vector3();
+    this.pColor = new THREE.Color();
+    this.mesh = new THREE.Mesh();
+    this.pointLight = new THREE.PointLight(0xffffff, 0.3);
+};
+
+Puck.prototype.update = function (dt) {
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.pointLight.position.set(this.pos.x, 10, this.pos.z);
+    this.pointLight.color = this.pColor;
+    this.mesh.material.color = this.pColor;
+
+};
+
+Puck.prototype.collision = function () {
+    // collision
+    if (this.pos.x > 100) {
+        this.pos.x = 100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+    } else if (this.pos.x < -100) {
+        this.pos.x = -100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+    }
+    else if (this.pos.z > 100 && (this.pos.x > asd-55 || this.pos.x < -(asd)+55 || (this.pos.x < asd2+25 && this.pos.x > asd2-25))) {
+        this.pos.z = 100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+    } else if (this.pos.z < -100 && (this.pos.x > asd-55 || this.pos.x < -(asd)+55 || (this.pos.x < asd2+25 && this.pos.x > asd2-25))) {
+        this.pos.z = -100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+    }
+}
+
+init();
+animate();
+
+function newPuck() {
+    var puck = new Puck();
+    puck.pos = new THREE.Vector3(0, 1, 0);
+    puck.vel = new THREE.Vector3(150 * (Math.random() * 2 - 1), 0, 170 * (Math.random() * 2 - 1));
+    puck.pColor = new THREE.Color(0xff0000);
+    puck.mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 2, 20),
+    new THREE.MeshBasicMaterial());
+    puck.mesh.material.color = puck.pColor;
+    scene.add(puck.mesh);
+    scene.add(puck.pointLight);
+    return puck;
+}
+
+function init() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.z = 100;
+	camera.position.y = 300;
+    scene.add(camera);
+
+    geometry = new THREE.BoxGeometry(220, 30, 10);
+	geometry2 = new THREE.BoxGeometry(110, 30, 10);
+    material = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xffffff,
+        opacity: 0.4
+    });
+	
+	var geometry3 = new THREE.BoxGeometry(50, 30, 10);
+
+    meshMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            time: {
+                type: 'f',
+                value: 1.0
+            }
+        },
+        vertexShader: document.getElementById('vertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShader').textContent
+    });
+
+    panmesh = new THREE.Mesh(geometry3, meshMaterial);
+	panmesh.position.set(asd2, 15, 105);
+	scene.add(panmesh);
+	panmesh2 = panmesh.clone();
+	panmesh2.position.set(asd2, 15, -105);
+	scene.add(panmesh2);
+		
+	
+    mesh = new THREE.Mesh(geometry, material);
+    /*mesh.position.set(0, 15, 105);
+    scene.add(mesh);
+    mesh2 = mesh.clone();
+    mesh2.position.set(0, 15, -105);
+    scene.add(mesh2);*/
+	dmesh = new THREE.Mesh(geometry2, material);
+	dmesh.position.set(-(asd), 15, 105);
+    scene.add(dmesh);
+    dmesh2 = dmesh.clone();
+    dmesh2.position.set(asd, 15, 105);
+    scene.add(dmesh2);
+	dmesh3 = dmesh.clone();
+    dmesh3.position.set(-(asd), 15, -105);
+    scene.add(dmesh3);
+	dmesh4 = dmesh.clone();
+    dmesh4.position.set(asd, 15, -105);
+    scene.add(dmesh4);
+	
+    mesh3 = mesh.clone();
+    mesh3.rotation.y = Math.PI / 2;
+    mesh3.position.set(105, 15, 0);
+    scene.add(mesh3);
+    mesh4 = mesh.clone();
+    mesh4.rotation.y = Math.PI / 2;
+    mesh4.position.set(-105, 15, 0);
+    scene.add(mesh4);
+
+    ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 130, 130),
+    new THREE.MeshLambertMaterial({
+        color: 0xffffff
+    }));
+
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    var ambientLight = new THREE.AmbientLight(0x111111);
+    scene.add(ambientLight);
+
+    document.body.appendChild(renderer.domElement);
+
+    // add first puck
+    pucks.push(newPuck());
+    // add remaining pucks, invisible and zero intensity
+    
+    for (var i = 1; i < 10; i++) {
+        var thispuck = newPuck();
+        thispuck.mesh.visible = false;
+        thispuck.pointLight.intensity = 0;
+        pucks.push(thispuck);
+    }
+
+    // start first new puck
+    setTimeout (startNewPuck, 1000);
+}
+
+function startNewPuck() {
+    console.log (which);
+    pucks[which].mesh.visible = true;
+    pucks[which].pointLight.intensity = 0.3;
+    which++;
+    if (which <= 9)
+        setTimeout (startNewPuck, 10000);
+}
+
+function animate() {
+    var dt = clock.getDelta();
+	
+	dmesh.position.set(-(asd), 15, 105);
+	dmesh2.position.set(asd, 15, 105);
+	dmesh3.position.set(-(asd), 15, -105);
+	dmesh4.position.set(asd, 15, -105);
+	if(asd < 165)
+		asd += 0.01;
+	
+	panmesh.position.set(asd2, 15, 105);
+	panmesh2.position.set(asd2, 15, -105);
+	
+    pucks.forEach(function (puck) {
+        puck.update(dt);
+        puck.collision();
+    });
+
+	meshMaterial.uniforms.time.value += dt * 2;
+	
+    controls.update();
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+</script>  
+ </body>
+</html>
